@@ -16,6 +16,7 @@ const initialState = {
         etcd: { status: 'Healthy', data: {} },
         scheduler: { status: 'Healthy' },
     },
+    schedulerInternals: null, // { currentPod, nodes: [], phase: 'FILTERING' | 'SCORING' | 'BINDING' }
     packets: [],
     // Networking State
     networking: {
@@ -31,6 +32,8 @@ const initialState = {
     stepQueue: [],
     isPlaying: false, // Default to manual mode
     currentStepDescription: 'Ready',
+    showSchedulerWindow: false, // Automatic window control
+    isSchedulerDeepDiveMode: false, // Standalone full-screen mode
 };
 
 function clusterReducer(state, action) {
@@ -50,6 +53,10 @@ function clusterReducer(state, action) {
             return { ...state, isPlaying: action.payload };
         case 'CLEAR_QUEUE':
             return { ...state, stepQueue: [], currentStepDescription: 'Ready' };
+        case 'SET_SHOW_SCHEDULER_WINDOW':
+            return { ...state, showSchedulerWindow: action.payload };
+        case 'SET_SCHEDULER_DEEP_DIVE_MODE':
+            return { ...state, isSchedulerDeepDiveMode: action.payload };
 
         // --- Business Logic ---
         case 'ADD_POD':
@@ -151,6 +158,8 @@ function clusterReducer(state, action) {
                     }
                 }
             };
+        case 'UPDATE_SCHEDULER_STATE':
+            return { ...state, schedulerInternals: action.payload };
         default:
             return state;
     }

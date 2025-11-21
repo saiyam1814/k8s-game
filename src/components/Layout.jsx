@@ -1,11 +1,14 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { ControlPlaneNode, WorkerNode } from './ClusterNodes';
 import { PacketLayer } from './PacketLayer';
 import { useCluster } from '../store/clusterContext';
-import { Play, Pause, SkipForward, Plus, Network, Layers, RotateCcw } from 'lucide-react';
+import { Play, Pause, SkipForward, Plus, Network, Layers, RotateCcw, Cpu } from 'lucide-react';
+import { SchedulerInternals } from './SchedulerInternals';
+import { SchedulerDeepDive } from './SchedulerDeepDive';
 
 export function Layout() {
     const { state, dispatch } = useCluster();
+    const [showScheduler, setShowScheduler] = useState(false);
 
     // Step Executor Logic
     useEffect(() => {
@@ -73,6 +76,10 @@ export function Layout() {
         }
     };
 
+    if (state.isSchedulerDeepDiveMode) {
+        return <SchedulerDeepDive onClose={() => dispatch({ type: 'SET_SCHEDULER_DEEP_DIVE_MODE', payload: false })} />;
+    }
+
     return (
         <div className="flex flex-col h-screen bg-slate-950 text-white overflow-hidden font-sans">
             {/* Header */}
@@ -101,6 +108,13 @@ export function Layout() {
                         onClick={() => handleAction('expose-service')}
                         color="bg-purple-600 hover:bg-purple-500"
                         disabled={state.stepQueue.length > 0}
+                    />
+                    <ActionButton
+                        icon={<Cpu />}
+                        label="Scheduler Deep Dive"
+                        onClick={() => dispatch({ type: 'SET_SCHEDULER_DEEP_DIVE_MODE', payload: true })}
+                        color="bg-purple-600 hover:bg-purple-500"
+                        disabled={false}
                     />
 
                     {state.services.length > 0 && (
@@ -194,6 +208,15 @@ export function Layout() {
                     ))}
                 </div>
             </div>
+            {/* Scheduler Modal */}
+            {(showScheduler || state.showSchedulerWindow) && (
+                <SchedulerInternals
+                    onClose={() => {
+                        setShowScheduler(false);
+                        dispatch({ type: 'SET_SHOW_SCHEDULER_WINDOW', payload: false });
+                    }}
+                />
+            )}
         </div>
     );
 }

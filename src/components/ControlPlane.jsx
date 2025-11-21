@@ -36,16 +36,22 @@ export function ControlPlane() {
     );
 }
 
-function ControlComponent({ icon, name, status, color, bg }) {
+function ControlComponent({ icon, name, status, color, bg, onClick, hasAction }) {
     return (
-        <div className="flex items-center justify-between p-3 rounded-lg bg-slate-800/30 border border-slate-800 hover:bg-slate-800/50 transition-colors">
+        <div
+            onClick={onClick}
+            className={`flex items-center justify-between p-3 rounded-lg bg-slate-800/30 border border-slate-800 transition-colors ${hasAction ? 'hover:bg-slate-800/50 cursor-pointer hover:border-purple-500/30' : ''}`}
+        >
             <div className="flex items-center gap-3">
                 <div className={`p-2 rounded ${bg} ${color}`}>
                     {icon}
                 </div>
                 <span className="text-sm font-medium text-slate-300">{name}</span>
             </div>
-            <span className="text-xs font-mono text-slate-500">{status}</span>
+            <div className="flex items-center gap-2">
+                {hasAction && <span className="text-[10px] text-purple-400 bg-purple-500/10 px-2 py-0.5 rounded border border-purple-500/20">Click to View</span>}
+                <span className="text-xs font-mono text-slate-500">{status}</span>
+            </div>
         </div>
     );
 }
