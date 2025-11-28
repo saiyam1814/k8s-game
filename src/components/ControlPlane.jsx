@@ -1,7 +1,10 @@
 import React from 'react';
-import { Activity, Database, Cpu, Layers } from 'lucide-react';
+import { Activity, Database, Cpu, Layers, Globe } from 'lucide-react';
+import { useCluster } from '../store/clusterContext';
 
 export function ControlPlane() {
+    const { state } = useCluster();
+
     return (
         <div className="space-y-4">
             <ControlComponent
@@ -32,6 +35,15 @@ export function ControlPlane() {
                 color="text-orange-400"
                 bg="bg-orange-500/10"
             />
+            {state.ingressController && (
+                <ControlComponent
+                    icon={<Globe size={16} />}
+                    name="Ingress Controller"
+                    status="Active"
+                    color="text-pink-400"
+                    bg="bg-pink-500/10"
+                />
+            )}
         </div>
     );
 }

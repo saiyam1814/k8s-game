@@ -24,8 +24,16 @@ export function PacketLayer() {
 }
 
 function Packet({ packet, positions, onComplete }) {
-    const startPos = positions[packet.from];
-    const endPos = positions[packet.to];
+    let startPos = positions[packet.from];
+    let endPos = positions[packet.to];
+
+    // Handle special "INTERNET" location
+    if (packet.from === 'INTERNET') {
+        startPos = { x: window.innerWidth / 2, y: -50 };
+    }
+    if (packet.to === 'INTERNET') {
+        endPos = { x: window.innerWidth / 2, y: -50 };
+    }
 
     if (!startPos || !endPos) return null;
 

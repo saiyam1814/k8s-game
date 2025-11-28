@@ -9,6 +9,8 @@ const initialState = {
     ],
     pods: [],
     services: [],
+    ingress: [], // Ingress resources
+    ingressController: null, // { status: 'Active', ip: '1.2.3.4' }
     deployments: [],
     events: [],
     controlPlane: {
@@ -34,6 +36,9 @@ const initialState = {
     currentStepDescription: 'Ready',
     showSchedulerWindow: false, // Automatic window control
     isSchedulerDeepDiveMode: false, // Standalone full-screen mode
+    ingressSimulationTriggered: false, // Trigger for Ingress demo
+    highlightedComponentId: null, // ID of component to highlight
+    activeConnections: [], // Persistent arrows { id, from, to, label, color }
 };
 
 function clusterReducer(state, action) {
@@ -57,6 +62,18 @@ function clusterReducer(state, action) {
             return { ...state, showSchedulerWindow: action.payload };
         case 'SET_SCHEDULER_DEEP_DIVE_MODE':
             return { ...state, isSchedulerDeepDiveMode: action.payload };
+        case 'START_INGRESS_SIMULATION':
+            return { ...state, ingressSimulationTriggered: true };
+        case 'STOP_INGRESS_SIMULATION':
+            return { ...state, ingressSimulationTriggered: false };
+        case 'SET_HIGHLIGHT':
+            return { ...state, highlightedComponentId: action.payload };
+        case 'ADD_CONNECTION':
+            return { ...state, activeConnections: [...state.activeConnections, action.payload] };
+        case 'REMOVE_CONNECTION':
+            return { ...state, activeConnections: state.activeConnections.filter(c => c.id !== action.payload) };
+        case 'CLEAR_CONNECTIONS':
+            return { ...state, activeConnections: [] };
 
         // --- Business Logic ---
         case 'ADD_POD':
@@ -95,6 +112,10 @@ function clusterReducer(state, action) {
             };
         case 'ADD_SERVICE':
             return { ...state, services: [...state.services, action.payload] };
+        case 'ADD_INGRESS':
+            return { ...state, ingress: [...state.ingress, action.payload] };
+        case 'ADD_INGRESS_CONTROLLER':
+            return { ...state, ingressController: action.payload };
 
         // --- Networking Reducers ---
         case 'ADD_IPTABLES_RULE':

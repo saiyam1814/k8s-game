@@ -1,12 +1,14 @@
 import React, { useEffect, useRef } from 'react';
 import { usePositionRegistry } from '../store/PositionRegistry';
 import { useCluster } from '../store/clusterContext';
-import { Activity, Database, Cpu, Layers, Box, Server, Network, Settings, Shield } from 'lucide-react';
+import { Activity, Database, Cpu, Layers, Box, Server, Network, Settings, Shield, Globe } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 function TrackedComponent({ id, children, className }) {
     const ref = useRef(null);
     const { registerPosition } = usePositionRegistry();
+    const { state } = useCluster();
+    const isHighlighted = state.highlightedComponentId === id;
 
     useEffect(() => {
         const updatePosition = () => {
@@ -32,31 +34,75 @@ function TrackedComponent({ id, children, className }) {
         }
     }, [id, registerPosition]);
 
-    return <div ref={ref} className={className}>{children}</div>;
+    return (
+        <div
+            ref={ref}
+            className={`${className || ''} transition-all duration-500 ${isHighlighted ? 'ring-4 ring-yellow-400 shadow-[0_0_30px_rgba(250,204,21,0.6)] scale-105 z-50 bg-slate-800' : ''}`}
+        >
+            {children}
+        </div>
+    );
 }
 
 export function ControlPlaneNode() {
     return (
-        <div className="bg-slate-900/80 border border-slate-700 rounded-xl p-6 shadow-xl flex flex-col gap-6">
-            <div className="text-sm font-bold text-slate-500 uppercase tracking-wider border-b border-slate-800 pb-2">Control Plane</div>
+        <div className="bg-slate-900/80 border border-slate-700 rounded-xl p-4 shadow-xl flex flex-col gap-4 min-w-[300px]">
+            <div className="text-xs font-bold text-slate-500 uppercase tracking-wider border-b border-slate-800 pb-2">Control Plane</div>
 
-            <div className="grid grid-cols-2 gap-6">
+            <div className="grid grid-cols-2 gap-3">
                 <TrackedComponent id="API_SERVER" className="col-span-2">
-                    <ComponentCard icon={<Activity />} name="API Server" color="text-blue-400" bg="bg-blue-500/10" />
+                    <ComponentCard icon={<Activity />} name="API Server" color="text-blue-400" bg="bg-blue-500/10" small />
                 </TrackedComponent>
 
                 <TrackedComponent id="ETCD">
-                    <ComponentCard icon={<Database />} name="etcd" color="text-green-400" bg="bg-green-500/10" />
+                    <ComponentCard icon={<Database />} name="etcd" color="text-green-400" bg="bg-green-500/10" small />
                 </TrackedComponent>
 
                 <TrackedComponent id="SCHEDULER">
-                    <ComponentCard icon={<Cpu />} name="Scheduler" color="text-purple-400" bg="bg-purple-500/10" />
+                    <ComponentCard icon={<Cpu />} name="Scheduler" color="text-purple-400" bg="bg-purple-500/10" small />
                 </TrackedComponent>
 
                 <TrackedComponent id="CONTROLLER_MANAGER" className="col-span-2">
-                    <ComponentCard icon={<Layers />} name="Controller Manager" color="text-orange-400" bg="bg-orange-500/10" />
+                    <ComponentCard icon={<Layers />} name="Controller Manager" color="text-orange-400" bg="bg-orange-500/10" small />
                 </TrackedComponent>
+
+                {useCluster().state.ingressController && (
+                    <TrackedComponent id="INGRESS_CONTROLLER" className="col-span-2">
+                        <ComponentCard icon={<Globe />} name="Ingress Controller" color="text-pink-400" bg="bg-pink-500/10" />
+                    </TrackedComponent>
+                )}
             </div>
+
+            {/* Cluster Resources (Services, Ingresses) */}
+            {(useCluster().state.services.length > 0 || useCluster().state.ingress.length > 0) && (
+                <>
+                    <div className="text-xs font-bold text-slate-500 uppercase tracking-wider border-b border-slate-800 pb-1 mt-2">Resources</div>
+                    <div className="flex flex-col gap-2">
+                        {useCluster().state.ingress.map(ing => (
+                            <TrackedComponent key={ing.id} id={ing.id}>
+                                <div className="bg-slate-950 border border-slate-800 rounded p-2 flex items-center gap-2">
+                                    <Globe size={14} className="text-orange-400" />
+                                    <div>
+                                        <div className="text-[10px] font-bold text-slate-300">Ingress: {ing.name}</div>
+                                        <div className="text-[8px] text-slate-500">Rules: {ing.rules.length}</div>
+                                    </div>
+                                </div>
+                            </TrackedComponent>
+                        ))}
+                        {useCluster().state.services.map(svc => (
+                            <TrackedComponent key={svc.id} id={svc.id}>
+                                <div className="bg-slate-950 border border-slate-800 rounded p-2 flex items-center gap-2">
+                                    <Network size={14} className="text-purple-400" />
+                                    <div>
+                                        <div className="text-[10px] font-bold text-slate-300">Service: {svc.name}</div>
+                                        <div className="text-[8px] text-slate-500">{svc.clusterIP}</div>
+                                    </div>
+                                </div>
+                            </TrackedComponent>
+                        ))}
+                    </div>
+                </>
+            )}
         </div>
     );
 }
@@ -66,12 +112,12 @@ export function WorkerNode({ node }) {
     const pods = state.pods.filter(p => p.nodeId === node.id);
 
     return (
-        <div className="bg-slate-900/80 border border-slate-700 rounded-xl p-6 shadow-xl flex flex-col gap-6 min-w-[450px]">
+        <div className="bg-slate-900/80 border border-slate-700 rounded-xl p-4 shadow-xl flex flex-col gap-4 min-w-[400px]">
             <div className="flex items-center justify-between border-b border-slate-800 pb-2">
-                <div className="text-sm font-bold text-slate-500 uppercase tracking-wider">{node.name}</div>
+                <div className="text-xs font-bold text-slate-500 uppercase tracking-wider">{node.name}</div>
                 <div className="flex gap-2">
                     <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-                    <span className="text-xs text-slate-500">Ready</span>
+                    <span className="text-[10px] text-slate-500">Ready</span>
                 </div>
             </div>
 

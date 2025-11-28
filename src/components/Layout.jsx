@@ -2,9 +2,10 @@ import React, { useEffect, useState } from 'react';
 import { ControlPlaneNode, WorkerNode } from './ClusterNodes';
 import { PacketLayer } from './PacketLayer';
 import { useCluster } from '../store/clusterContext';
-import { Play, Pause, SkipForward, Plus, Network, Layers, RotateCcw, Cpu } from 'lucide-react';
+import { Play, Pause, SkipForward, Plus, Network, Layers, RotateCcw, Cpu, Globe } from 'lucide-react';
 import { SchedulerInternals } from './SchedulerInternals';
 import { SchedulerDeepDive } from './SchedulerDeepDive';
+import { ConnectionLayer } from './ConnectionLayer';
 
 export function Layout() {
     const { state, dispatch } = useCluster();
@@ -73,6 +74,9 @@ export function Layout() {
             case 'reset':
                 window.location.reload(); // Simple reset
                 break;
+            case 'ingress-demo':
+                dispatch({ type: 'START_INGRESS_SIMULATION' });
+                break;
         }
     };
 
@@ -115,6 +119,13 @@ export function Layout() {
                         onClick={() => dispatch({ type: 'SET_SCHEDULER_DEEP_DIVE_MODE', payload: true })}
                         color="bg-purple-600 hover:bg-purple-500"
                         disabled={false}
+                    />
+                    <ActionButton
+                        icon={<Globe />}
+                        label="Ingress Animation"
+                        onClick={() => handleAction('ingress-demo')}
+                        color="bg-orange-600 hover:bg-orange-500"
+                        disabled={state.stepQueue.length > 0}
                     />
 
                     {state.services.length > 0 && (
@@ -168,31 +179,21 @@ export function Layout() {
             </div>
 
             {/* Main Content */}
-            <main className="flex-1 flex overflow-hidden relative">
+            <main className="flex-1 flex flex-col overflow-hidden relative p-4 gap-4">
                 <PacketLayer />
+                <ConnectionLayer />
 
                 <div className="absolute inset-0 bg-grid-pattern opacity-20 pointer-events-none" />
 
-                <div className="flex-1 flex items-center justify-center gap-16 p-8 relative z-10">
-                    {/* Control Plane Zone */}
-                    <div className="flex flex-col items-center gap-4">
-                        <ControlPlaneNode />
-                    </div>
-
-                    {/* Connection Lines (Visual only) */}
-                    <div className="h-px w-24 bg-slate-700 border-t border-dashed border-slate-500/50"></div>
-
-                    {/* Worker Nodes Zone */}
-                    <div className="flex flex-col gap-8 overflow-y-auto max-h-full pr-6 pb-20 w-full max-w-md">
-                        {state.nodes.map(node => (
-                            <WorkerNode key={node.id} node={node} />
-                        ))}
-                    </div>
+                {/* Nodes Container - Centered and Compact */}
+                <div className="flex-1 flex items-center justify-center gap-8 z-10 scale-[0.85] origin-center">
+                    <ControlPlaneNode />
+                    <WorkerNode node={state.nodes[0]} />
                 </div>
             </main>
 
             {/* Logs Panel (Bottom) */}
-            <div className="h-48 border-t border-slate-800 bg-slate-900/80 backdrop-blur-md p-4 overflow-y-auto font-mono text-xs">
+            < div className="h-48 border-t border-slate-800 bg-slate-900/80 backdrop-blur-md p-4 overflow-y-auto font-mono text-xs" >
                 <div className="text-slate-500 font-bold mb-2 uppercase tracking-wider sticky top-0 bg-slate-900/80 py-1">Cluster Events</div>
                 <div className="space-y-1">
                     {state.events.slice().reverse().map((event, i) => (
@@ -207,17 +208,19 @@ export function Layout() {
                         </div>
                     ))}
                 </div>
-            </div>
+            </div >
             {/* Scheduler Modal */}
-            {(showScheduler || state.showSchedulerWindow) && (
-                <SchedulerInternals
-                    onClose={() => {
-                        setShowScheduler(false);
-                        dispatch({ type: 'SET_SHOW_SCHEDULER_WINDOW', payload: false });
-                    }}
-                />
-            )}
-        </div>
+            {
+                (showScheduler || state.showSchedulerWindow) && (
+                    <SchedulerInternals
+                        onClose={() => {
+                            setShowScheduler(false);
+                            dispatch({ type: 'SET_SHOW_SCHEDULER_WINDOW', payload: false });
+                        }}
+                    />
+                )
+            }
+        </div >
     );
 }
 

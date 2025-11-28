@@ -208,6 +208,9 @@ export function SimulationController() {
         const latestService = services[services.length - 1];
 
         if (processingPods.current.has(latestService.id)) return;
+        // Ignore Ingress Demo Service
+        if (latestService.id.startsWith('svc-ingress-')) return;
+
         processingPods.current.add(latestService.id);
 
         const proxyId = 'proxy-node-1';
@@ -321,6 +324,153 @@ export function SimulationController() {
         processingPods.current.delete(req.id);
 
     }, [state.controlPlane.apiServer.requests, state.pods, dispatch]);
+
+    // --- Ingress Simulation Logic ---
+    useEffect(() => {
+        if (!state.ingressSimulationTriggered) return;
+
+        // Reset trigger immediately
+        dispatch({ type: 'STOP_INGRESS_SIMULATION' });
+
+        const steps = [];
+        const demoPodId = `pod-ingress-${Date.now()}`;
+        const demoServiceId = `svc-ingress-${Date.now()}`;
+        const demoIngressId = `ing-ingress-${Date.now()}`;
+
+        // 1. Create Deployment (Directly create Pod on Node, skip Scheduler)
+        steps.push({
+            description: "User runs: kubectl create deployment demo --image=httpd --port=80",
+            actions: [
+                { type: 'ADD_LOG', payload: { type: 'INFO', message: `> kubectl create deployment demo --image=httpd --port=80`, timestamp: Date.now() } },
+                {
+                    type: 'ADD_POD',
+                    payload: {
+                        id: demoPodId,
+                        name: 'demo-pod',
+                        status: 'Running', // Directly Running
+                        nodeId: 'node-1' // Directly assigned to node-1
+                    }
+                },
+                { type: 'SET_HIGHLIGHT', payload: `pod-${demoPodId}` } // Highlight Pod
+            ]
+        });
+
+        // 2. Expose Service
+        steps.push({
+            description: "User runs: kubectl expose deployment demo --port=80",
+            actions: [
+                { type: 'ADD_LOG', payload: { type: 'INFO', message: `> kubectl expose deployment demo --port=80`, timestamp: Date.now() } },
+                {
+                    type: 'ADD_SERVICE',
+                    payload: {
+                        id: demoServiceId,
+                        name: 'demo-svc',
+                        selector: { app: 'demo' },
+                        clusterIP: '10.96.0.20',
+                        ports: [{ port: 80, targetPort: 80 }]
+                    }
+                },
+                { type: 'SET_HIGHLIGHT', payload: null } // Clear Pod highlight
+            ]
+        });
+
+        // 3. Deploy Ingress Controller
+        if (!state.ingressController) {
+            steps.push({
+                description: "Deploying Nginx Ingress Controller...",
+                actions: [
+                    { type: 'ADD_LOG', payload: { type: 'INFO', message: `Deploying Ingress Controller...`, timestamp: Date.now() } },
+                    { type: 'ADD_INGRESS_CONTROLLER', payload: { status: 'Active', ip: '192.168.1.100' } },
+                    { type: 'SET_HIGHLIGHT', payload: 'INGRESS_CONTROLLER' } // Highlight Controller
+                ]
+            });
+        } else {
+            steps.push({
+                description: "Highlighting Ingress Controller...",
+                actions: [
+                    { type: 'SET_HIGHLIGHT', payload: 'INGRESS_CONTROLLER' }
+                ]
+            });
+        }
+
+        // 4. Create Ingress Resource & Establish Connections
+        steps.push({
+            description: "User runs: kubectl create ingress demo-ingress --class=nginx --rule='/=demo:80'",
+            actions: [
+                { type: 'ADD_LOG', payload: { type: 'INFO', message: `> kubectl create ingress demo-ingress --class=nginx --rule="/=demo:80"`, timestamp: Date.now() } },
+                {
+                    type: 'ADD_INGRESS',
+                    payload: {
+                        id: demoIngressId,
+                        name: 'demo-ingress',
+                        rules: [{ host: '*', path: '/', backend: { service: 'demo-svc', port: 80 } }]
+                    }
+                },
+                { type: 'SET_HIGHLIGHT', payload: demoIngressId }, // Highlight Ingress Object
+
+                // Add Arrows
+                {
+                    type: 'ADD_CONNECTION',
+                    payload: { id: 'conn-1', from: demoIngressId, to: demoServiceId, label: 'Routes to', color: '#fbbf24' }
+                },
+                {
+                    type: 'ADD_CONNECTION',
+                    payload: { id: 'conn-2', from: demoServiceId, to: `pod-${demoPodId}`, label: 'Selects', color: '#a855f7' }
+                }
+            ]
+        });
+
+        // 5. Simulate Traffic Flow
+        // Internet -> Ingress Controller
+        steps.push({
+            description: "External Request hits Ingress Controller (Public IP)",
+            actions: [
+                { type: 'SET_HIGHLIGHT', payload: 'INGRESS_CONTROLLER' },
+                { type: 'ADD_PACKET', payload: { id: `req-ext-${Date.now()}`, from: 'INTERNET', to: 'INGRESS_CONTROLLER' } }
+            ]
+        });
+
+        // Ingress Controller -> Ingress Object (Logical lookup)
+        steps.push({
+            description: "Controller checks Ingress Rules",
+            actions: [
+                { type: 'SET_HIGHLIGHT', payload: demoIngressId },
+                // Visual packet to Ingress object to show "lookup"
+                // { type: 'ADD_PACKET', payload: { id: `req-lookup-${Date.now()}`, from: 'INGRESS_CONTROLLER', to: demoIngressId } }
+            ]
+        });
+
+        // Ingress Controller -> Service (Routing)
+        steps.push({
+            description: "Ingress Controller resolves route to Service",
+            actions: [
+                { type: 'SET_HIGHLIGHT', payload: demoServiceId },
+                { type: 'ADD_PACKET', payload: { id: `req-ing-${Date.now()}`, from: 'INGRESS_CONTROLLER', to: demoServiceId } }
+            ]
+        });
+
+        // Service -> Pod (Load Balancing)
+        steps.push({
+            description: "Service forwards request to Pod",
+            actions: [
+                { type: 'SET_HIGHLIGHT', payload: `pod-${demoPodId}` },
+                { type: 'ADD_PACKET', payload: { id: `req-svc-${Date.now()}`, from: demoServiceId, to: demoPodId } }
+            ]
+        });
+
+        // Pod -> Response
+        steps.push({
+            description: "Pod processes request and responds",
+            actions: [
+                { type: 'ADD_LOG', payload: { type: 'POD', message: `Pod demo-pod: 200 OK`, timestamp: Date.now() } },
+                { type: 'SET_HIGHLIGHT', payload: null },
+                { type: 'CLEAR_CONNECTIONS', payload: null }
+            ]
+        });
+
+        dispatch({ type: 'ENQUEUE_STEPS', payload: steps });
+
+    }, [state.ingressSimulationTriggered, state.ingressController, dispatch]);
 
     // --- Scheduler Deep Dive Simulation ---
     useEffect(() => {
